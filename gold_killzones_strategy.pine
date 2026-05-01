@@ -1,4 +1,5 @@
 //@version=5
+
 strategy("Gold Killzones Pro - XAUUSD v2", overlay=true, margin_type=strategy.fixed, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=2, commission_type=strategy.commission.percent, commission_value=0.001)
 
 // ==================== INPUTS ====================
@@ -115,10 +116,10 @@ plotshape(sell_signal, style=shape.labeldown, location=location.abovebar, color=
 
 // ==================== ALERTS ====================
 if buy_signal
-    alert("🟢 GOLD BUY SIGNAL - Support Killzone Active | Entry: " + str.tostring(math.round(close, 2)) + " | TP: " + str.tostring(math.round(buy_tp_level, 2)), alert.freq_once_per_bar_close)
+    alert("GOLD BUY SIGNAL - Support Killzone Active | Entry: " + str.tostring(math.round(close, 2)) + " | TP: " + str.tostring(math.round(buy_tp_level, 2)), alert.freq_once_per_bar_close)
 
 if sell_signal
-    alert("🔴 GOLD SELL SIGNAL - Resistance Killzone Active | Entry: " + str.tostring(math.round(close, 2)) + " | TP: " + str.tostring(math.round(sell_tp_level, 2)), alert.freq_once_per_bar_close)
+    alert("GOLD SELL SIGNAL - Resistance Killzone Active | Entry: " + str.tostring(math.round(close, 2)) + " | TP: " + str.tostring(math.round(sell_tp_level, 2)), alert.freq_once_per_bar_close)
 
 // ==================== STRATEGY EXECUTION ====================
 if enable_trading
