@@ -1,69 +1,52 @@
-// Gold (XAUUSD) Killzone Identifier Strategy v2.0
-// Premium High-Win-Rate Killzone Detection
-// Timeframe: 1H, 4H recommended | Works on 15m for scalping
-// ============================================================================
-
 //@version=5
 strategy("Gold Killzones Pro - XAUUSD v2", overlay=true, margin_type=strategy.fixed, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=2, commission_type=strategy.commission.percent, commission_value=0.001)
 
 // ==================== INPUTS ====================
-group1 = "Killzone Settings"
-lookback = input.int(20, title="Lookback Bars", minval=10, maxval=50, group=group1)
-atr_mult = input.float(1.2, title="Zone Width (ATR Multiplier)", minval=0.5, maxval=3.0, step=0.1, group=group1)
-min_zone_distance = input.int(50, title="Min Distance Between Zones", minval=20, maxval=100, group=group1)
+lookback = input.int(20, title="Lookback Bars", minval=10, maxval=50)
+atr_mult = input.float(1.2, title="Zone Width (ATR Multiplier)", minval=0.5, maxval=3.0, step=0.1)
 
-group2 = "Session Settings"
-london_start = input.int(1, title="London Open (UTC)", minval=0, maxval=23, group=group2)
-london_end = input.int(8, title="London Close (UTC)", minval=0, maxval=23, group=group2)
-ny_start = input.int(13, title="NY Open (UTC)", minval=0, maxval=23, group=group2)
-ny_end = input.int(21, title="NY Close (UTC)", minval=0, maxval=23, group=group2)
+london_start = input.int(1, title="London Open (UTC)", minval=0, maxval=23)
+london_end = input.int(8, title="London Close (UTC)", minval=0, maxval=23)
+ny_start = input.int(13, title="NY Open (UTC)", minval=0, maxval=23)
+ny_end = input.int(21, title="NY Close (UTC)", minval=0, maxval=23)
 
-group3 = "Entry Signals"
-use_rsi = input.bool(true, title="Use RSI Confirmation", group=group3)
-rsi_oversold = input.int(35, title="RSI Oversold Level", minval=20, maxval=50, group=group3)
-rsi_overbought = input.int(65, title="RSI Overbought Level", minval=50, maxval=80, group=group3)
-use_macd = input.bool(true, title="Use MACD Confirmation", group=group3)
-use_ema = input.bool(true, title="Use EMA Trend Filter", group=group3)
+use_rsi = input.bool(true, title="Use RSI Confirmation")
+rsi_oversold = input.int(35, title="RSI Oversold Level", minval=20, maxval=50)
+rsi_overbought = input.int(65, title="RSI Overbought Level", minval=50, maxval=80)
+use_macd = input.bool(true, title="Use MACD Confirmation")
+use_ema = input.bool(true, title="Use EMA Trend Filter")
 
-group4 = "Display Options"
-show_zones = input.bool(true, title="Show Killzones", group=group4)
-show_sessions = input.bool(true, title="Show Sessions", group=group4)
-show_ema = input.bool(true, title="Show EMAs", group=group4)
-show_table = input.bool(true, title="Show Status Table", group=group4)
+show_zones = input.bool(true, title="Show Killzones")
+show_sessions = input.bool(true, title="Show Sessions")
+show_ema = input.bool(true, title="Show EMAs")
+show_table = input.bool(true, title="Show Status Table")
 
-group5 = "Strategy Control"
-enable_trading = input.bool(false, title="Enable Live Trading", group=group5)
-risk_percent = input.float(2.0, title="Risk % Per Trade", minval=0.5, maxval=5.0, step=0.5, group=group5)
+enable_trading = input.bool(false, title="Enable Live Trading")
+risk_percent = input.float(2.0, title="Risk % Per Trade", minval=0.5, maxval=5.0, step=0.5)
 
 // ==================== CALCULATIONS ====================
-// Volatility
 atr_val = ta.atr(14)
 
-// Structure - Support & Resistance
 recent_high = ta.highest(high, lookback)
 recent_low = ta.lowest(low, lookback)
 mid = (recent_high + recent_low) / 2
 
-// Killzone boundaries
 zone_height = atr_val * atr_mult
 resistance_top = recent_high
 resistance_bottom = recent_high - zone_height
 support_top = recent_low + zone_height
 support_bottom = recent_low
 
-// Moving Averages
 ema_9 = ta.ema(close, 9)
 ema_21 = ta.ema(close, 21)
 ema_50 = ta.ema(close, 50)
 ema_200 = ta.ema(close, 200)
 
-// Momentum Indicators
 rsi_val = ta.rsi(close, 14)
 macd_line = ta.ema(close, 12) - ta.ema(close, 26)
 macd_signal = ta.ema(macd_line, 9)
 macd_hist = macd_line - macd_signal
 
-// Volume confirmation
 vol_avg = ta.sma(volume, 20)
 volume_spike = volume > (vol_avg * 1.5)
 
@@ -71,11 +54,9 @@ volume_spike = volume > (vol_avg * 1.5)
 current_hour = hour
 is_london = (current_hour >= london_start and current_hour < london_end)
 is_ny = (current_hour >= ny_start and current_hour < ny_end)
-is_tokyo = (current_hour >= 22 or current_hour < 1)
 is_high_volume_session = is_london or is_ny
 
 // ==================== KILLZONE DETECTION ====================
-// Support Killzone Logic
 in_support_zone = (close <= support_top and close >= support_bottom)
 support_bullish_ema = ema_9 > ema_21 and ema_21 > ema_50
 support_rsi_conf = rsi_val < rsi_oversold
@@ -84,7 +65,6 @@ support_price_action = close > open
 
 support_killzone = in_support_zone and support_bullish_ema and support_price_action
 
-// Resistance Killzone Logic
 in_resistance_zone = (close >= resistance_bottom and close <= resistance_top)
 resistance_bearish_ema = ema_9 < ema_21 and ema_21 < ema_50
 resistance_rsi_conf = rsi_val > rsi_overbought
@@ -93,15 +73,13 @@ resistance_price_action = close < open
 
 resistance_killzone = in_resistance_zone and resistance_bearish_ema and resistance_price_action
 
-// ==================== ENTRY SIGNALS (HIGH ACCURACY) ====================
-// Buy Signal - Support Killzone + Confirmations
+// ==================== ENTRY SIGNALS ====================
 buy_signal = support_killzone and is_high_volume_session and 
              (use_rsi ? support_rsi_conf : true) and 
              (use_macd ? support_macd_conf : true) and
              (use_ema ? support_bullish_ema : true) and
              volume_spike
 
-// Sell Signal - Resistance Killzone + Confirmations
 sell_signal = resistance_killzone and is_high_volume_session and 
               (use_rsi ? resistance_rsi_conf : true) and 
               (use_macd ? resistance_macd_conf : true) and
@@ -109,39 +87,26 @@ sell_signal = resistance_killzone and is_high_volume_session and
               volume_spike
 
 // ==================== EXIT LOGIC ====================
-// Take Profit & Stop Loss Levels
 buy_tp_level = resistance_top
 buy_sl_level = support_bottom - zone_height
 sell_tp_level = support_bottom
 sell_sl_level = resistance_top + zone_height
 
 // ==================== VISUALIZATION ====================
-
-// Killzone Boxes
 if show_zones
-    // Support Zone
-    box_support = box.new(left=bar_index[lookback], top=support_top, right=bar_index, bottom=support_bottom, 
-                          closed=false, border_color=color.new(color.green, 50), fill_color=color.new(color.green, 85), 
-                          xloc=xloc.bar_index)
-    
-    // Resistance Zone
-    box_resist = box.new(left=bar_index[lookback], top=resistance_top, right=bar_index, bottom=resistance_bottom, 
-                         closed=false, border_color=color.new(color.red, 50), fill_color=color.new(color.red, 85), 
-                         xloc=xloc.bar_index)
+    plot(support_top, color=color.new(color.green, 60), linewidth=2, title="Support Top", style=plot.style_dashed)
+    plot(support_bottom, color=color.new(color.green, 60), linewidth=2, title="Support Bottom", style=plot.style_dashed)
+    plot(resistance_top, color=color.new(color.red, 60), linewidth=2, title="Resistance Top", style=plot.style_dashed)
+    plot(resistance_bottom, color=color.new(color.red, 60), linewidth=2, title="Resistance Bottom", style=plot.style_dashed)
 
-// Session Background
 if show_sessions
     bgcolor(is_london ? color.new(color.blue, 92) : is_ny ? color.new(color.purple, 92) : color.new(color.gray, 95), title="Session")
 
-// EMAs
 if show_ema
-    plot(ema_9, color=color.new(color.orange, 0), linewidth=2, title="EMA 9", display=display.all)
-    plot(ema_21, color=color.new(color.blue, 0), linewidth=2, title="EMA 21", display=display.all)
-    plot(ema_50, color=color.new(color.red, 0), linewidth=1, title="EMA 50", style=plot.style_dashed, display=display.all)
+    plot(ema_9, color=color.new(color.orange, 0), linewidth=2, title="EMA 9")
+    plot(ema_21, color=color.new(color.blue, 0), linewidth=2, title="EMA 21")
+    plot(ema_50, color=color.new(color.red, 0), linewidth=1, title="EMA 50", style=plot.style_dashed)
 
-// Support & Resistance Lines
-plot(recent_high, color=color.new(color.red, 60), linewidth=2, title="Resistance Level", style=plot.style_dashed)
-plot(recent_low, color=color.new(color.green, 60), linewidth=2, title="Support Level", style=plot.style_dashed)
 plot(mid, color=color.new(color.gray, 70), linewidth=1, title="Mid Point", style=plot.style_dotted)
 
 // Entry Markers
@@ -165,7 +130,6 @@ if enable_trading
         qty = strategy.equity / close * (risk_percent / 100)
         strategy.entry("Short", strategy.short, qty=qty, alert_message="Short Entry - Resistance Killzone")
     
-    // Exit on TP/SL
     strategy.exit("Long Exit", "Long", limit=buy_tp_level, stop=buy_sl_level, alert_message="Long Exit")
     strategy.exit("Short Exit", "Short", limit=sell_tp_level, stop=sell_sl_level, alert_message="Short Exit")
 
@@ -173,41 +137,35 @@ if enable_trading
 if show_table and barstate.islast
     var table info_table = table.new(position.top_right, 2, 8, border_color=color.gray, frame_color=color.gray, frame_width=2)
     
-    // Header
-    table.cell(info_table, 0, 0, "═══ XAUUSD KILLZONE ═══", bgcolor=color.navy, text_color=color.white, text_size=size.small)
+    table.cell(info_table, 0, 0, "XAUUSD KILLZONE", bgcolor=color.navy, text_color=color.white, text_size=size.small)
     table.cell(info_table, 1, 0, "", bgcolor=color.navy)
     
-    // Current Price
     table.cell(info_table, 0, 1, "Price", text_color=color.white, bgcolor=color.new(color.black, 20))
     table.cell(info_table, 1, 1, str.tostring(math.round(close, 2)), text_color=color.yellow, bgcolor=color.new(color.black, 20))
     
-    // Zone Status
     table.cell(info_table, 0, 2, "Zone Status", text_color=color.white, bgcolor=color.new(color.black, 20))
-    zone_status = support_killzone ? "🟢 SUPPORT" : resistance_killzone ? "🔴 RESISTANCE" : "⚪ NEUTRAL"
-    table.cell(info_table, 1, 2, zone_status, text_color=support_killzone ? color.green : resistance_killzone ? color.red : color.gray, bgcolor=color.new(color.black, 20))
+    zone_status = support_killzone ? "SUPPORT" : resistance_killzone ? "RESISTANCE" : "NEUTRAL"
+    zone_color = support_killzone ? color.green : resistance_killzone ? color.red : color.gray
+    table.cell(info_table, 1, 2, zone_status, text_color=zone_color, bgcolor=color.new(color.black, 20))
     
-    // Session
     table.cell(info_table, 0, 3, "Session", text_color=color.white, bgcolor=color.new(color.black, 20))
-    session_name = is_london ? "🔵 LONDON" : is_ny ? "🟣 NY" : "⚪ TOKYO"
+    session_name = is_london ? "LONDON" : is_ny ? "NY" : "TOKYO"
     table.cell(info_table, 1, 3, session_name, text_color=color.white, bgcolor=color.new(color.black, 20))
     
-    // RSI
     table.cell(info_table, 0, 4, "RSI (14)", text_color=color.white, bgcolor=color.new(color.black, 20))
     rsi_color = rsi_val > rsi_overbought ? color.red : rsi_val < rsi_oversold ? color.green : color.gray
     table.cell(info_table, 1, 4, str.tostring(math.round(rsi_val, 1)), text_color=rsi_color, bgcolor=color.new(color.black, 20))
     
-    // MACD
     table.cell(info_table, 0, 5, "MACD Hist", text_color=color.white, bgcolor=color.new(color.black, 20))
     macd_color = macd_hist > 0 ? color.green : color.red
     table.cell(info_table, 1, 5, str.tostring(math.round(macd_hist, 5)), text_color=macd_color, bgcolor=color.new(color.black, 20))
     
-    // Volume
-    table.cell(info_table, 0, 6, "Volume Spike", text_color=color.white, bgcolor=color.new(color.black, 20))
-    vol_status = volume_spike ? "✅ YES" : "❌ NO"
-    table.cell(info_table, 1, 6, vol_status, text_color=volume_spike ? color.green : color.red, bgcolor=color.new(color.black, 20))
+    table.cell(info_table, 0, 6, "Volume", text_color=color.white, bgcolor=color.new(color.black, 20))
+    vol_status = volume_spike ? "SPIKE" : "LOW"
+    vol_color = volume_spike ? color.green : color.red
+    table.cell(info_table, 1, 6, vol_status, text_color=vol_color, bgcolor=color.new(color.black, 20))
     
-    // Signal
-    table.cell(info_table, 0, 7, "Trade Signal", text_color=color.white, bgcolor=color.new(color.black, 20))
-    signal_text = buy_signal ? "🟢 BUY" : sell_signal ? "🔴 SELL" : "⏸ WAIT"
+    table.cell(info_table, 0, 7, "Signal", text_color=color.white, bgcolor=color.new(color.black, 20))
+    signal_text = buy_signal ? "BUY" : sell_signal ? "SELL" : "WAIT"
     signal_color = buy_signal ? color.green : sell_signal ? color.red : color.gray
     table.cell(info_table, 1, 7, signal_text, text_color=signal_color, bgcolor=color.new(color.black, 20))
