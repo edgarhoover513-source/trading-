@@ -1,0 +1,130 @@
+// Gold (XAUUSD) Killzone Identifier Strategy
+// Identifies high-probability trading zones based on market structure
+// Timeframe: Best on 1H, 4H, 15m for confirmation
+// Author: AI Trading Assistant
+
+//@version=5
+strategy("Gold Killzones - XAUUSD", overlay=true, margin_type=strategy.fixed, initial_capital=100000, default_qty_type=strategy.percent_of_equity, default_qty_value=2)
+
+// ==================== INPUTS ====================
+killzone_lookback = input.int(20, title="Killzone Lookback Period", minval=5)
+atr_multiplier = input.float(1.5, title="ATR Multiplier for Zone Width", minval=0.5, step=0.1)
+session_start_hour = input.int(1, title="London Session Start (Hour UTC)", minval=0, maxval=23)
+session_end_hour = input.int(8, title="London Session End (Hour UTC)", minval=0, maxval=23)
+ny_session_start = input.int(13, title="NY Session Start (Hour UTC)", minval=0, maxval=23)
+ny_session_end = input.int(21, title="NY Session End (Hour UTC)", minval=0, maxval=23)
+
+show_support_resistance = input.bool(true, title="Show Support/Resistance Zones")
+show_session_boxes = input.bool(true, title="Show Trading Session Boxes")
+show_atr_bands = input.bool(true, title="Show ATR Volatility Bands")
+enable_trading = input.bool(false, title="Enable Strategy Execution")
+
+// ==================== CALCULATIONS ====================
+// Calculate ATR for volatility
+atr = ta.atr(14)
+
+// Find recent highs and lows (Support/Resistance)
+recent_high = ta.highest(high, killzone_lookback)
+recent_low = ta.lowest(low, killzone_lookback)
+
+// Mid-point for balance line
+mid_point = (recent_high + recent_low) / 2
+
+// Killzone width based on volatility
+killzone_width = atr * atr_multiplier
+
+// Calculate moving averages for trend confirmation
+ema_fast = ta.ema(close, 9)
+ema_slow = ta.ema(close, 21)
+ema_long = ta.ema(close, 50)
+
+// Momentum indicators
+rsi = ta.rsi(close, 14)
+macd_line = ta.ema(close, 12) - ta.ema(close, 26)
+macd_signal = ta.ema(macd_line, 9)
+macd_histogram = macd_line - macd_signal
+
+// ==================== SESSION DETECTION ====================
+is_london_session = (hour >= session_start_hour and hour < session_end_hour)
+is_ny_session = (hour >= ny_session_start and hour < ny_session_end)
+is_tokyo_session = (hour >= 22 or hour < 1) // Approximate
+
+// ==================== KILLZONE CONDITIONS ====================
+// Resistance Killzone: Price near recent high + pullback
+resistance_killzone = (close > (recent_high - killzone_width)) and (close <= recent_high) and (ema_fast < ema_slow)
+
+// Support Killzone: Price near recent low + pullback
+support_killzone = (close < (recent_low + killzone_width)) and (close >= recent_low) and (ema_fast > ema_slow)
+
+// Entry signals (only when in killzones during active sessions)
+buy_signal = support_killzone and is_london_session and rsi < 40 and macd_histogram > 0
+sell_signal = resistance_killzone and is_london_session and rsi > 60 and macd_histogram < 0
+
+// ==================== VISUALIZATION ====================
+
+// Plot Support/Resistance Zones
+if show_support_resistance
+    plot(recent_high, color=color.new(color.red, 0), linewidth=2, title="Resistance Level")
+    plot(recent_low, color=color.new(color.green, 0), linewidth=2, title="Support Level")
+    plot(mid_point, color=color.new(color.gray, 50), linewidth=1, title="Mid Point", style=plot.style_dashed)
+
+// Plot Killzone bands
+upper_band = recent_high + killzone_width
+lower_band = recent_low - killzone_width
+
+plot(upper_band, color=color.new(color.orange, 75), linewidth=1, title="Upper Band")
+plot(lower_band, color=color.new(color.orange, 75), linewidth=1, title="Lower Band")
+
+// Highlight killzone areas
+bgcolor(resistance_killzone ? color.new(color.red, 85) : na, title="Resistance Killzone")
+bgcolor(support_killzone ? color.new(color.green, 85) : na, title="Support Killzone")
+
+// Session backgrounds
+bgcolor(is_london_session ? color.new(color.blue, 92) : na, title="London Session")
+bgcolor(is_ny_session ? color.new(color.purple, 92) : na, title="NY Session")
+
+// Plot moving averages
+plot(ema_fast, color=color.new(color.orange, 0), linewidth=1, title="EMA 9")
+plot(ema_slow, color=color.new(color.blue, 0), linewidth=1, title="EMA 21")
+plot(ema_long, color=color.new(color.red, 50), linewidth=1, title="EMA 50")
+
+// ==================== ALERTS ====================
+alertcondition(buy_signal, title="BUY - Support Killzone", message="Gold Buy Signal at Support Killzone")
+alertcondition(sell_signal, title="SELL - Resistance Killzone", message="Gold Sell Signal at Resistance Killzone")
+
+// ==================== STRATEGY EXECUTION ====================
+if enable_trading
+    // Buy conditions
+    if buy_signal
+        strategy.entry("Long", strategy.long, alert_message="Entering Long at Support Killzone")
+    
+    // Sell conditions
+    if sell_signal
+        strategy.entry("Short", strategy.short, alert_message="Entering Short at Resistance Killzone")
+    
+    // Exit conditions
+    long_tp = recent_high
+    long_sl = recent_low - killzone_width
+    short_tp = recent_low
+    short_sl = recent_high + killzone_width
+    
+    strategy.exit("Long Exit", "Long", limit=long_tp, stop=long_sl)
+    strategy.exit("Short Exit", "Short", limit=short_tp, stop=short_sl)
+
+// ==================== DEBUGGING INFO ====================
+// Display current zone status in table
+var table debug_table = table.new(position.top_right, 2, 5, border_color=color.gray, frame_color=color.gray, frame_width=1)
+
+if barstate.islast
+    table.cell(debug_table, 0, 0, "XAUUSD Killzone Status", bgcolor=color.navy, text_color=color.white)
+    table.cell(debug_table, 1, 0, "", bgcolor=color.navy)
+    table.cell(debug_table, 0, 1, "Zone Type:", text_color=color.white)
+    zone_type = resistance_killzone ? "RESISTANCE" : support_killzone ? "SUPPORT" : "NEUTRAL"
+    table.cell(debug_table, 1, 1, zone_type, text_color=color.white)
+    table.cell(debug_table, 0, 2, "Session:", text_color=color.white)
+    session_type = is_london_session ? "LONDON" : is_ny_session ? "NY" : "TOKYO"
+    table.cell(debug_table, 1, 2, session_type, text_color=color.white)
+    table.cell(debug_table, 0, 3, "RSI:", text_color=color.white)
+    table.cell(debug_table, 1, 3, str.tostring(math.round(rsi, 1)), text_color=color.white)
+    table.cell(debug_table, 0, 4, "ATR:", text_color=color.white)
+    table.cell(debug_table, 1, 4, str.tostring(math.round(atr, 2)), text_color=color.white)
